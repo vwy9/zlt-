@@ -111,7 +111,7 @@ def plot_sw_ind_code_distribution(db_info, db_name):
     # 调整 x 轴的元素间隔
     bar_width = 0.8  # 设置柱形的宽度
     x = range(len(sw_ind_code_counts))
-    bars = ax.bar(x, sw_ind_code_counts.values, width=bar_width, color=['blue', 'red', 'yellow', 'green'])
+    bars = ax.bar(x, sw_ind_code_counts.values, width=bar_width, color= 'b')
 
     plt.xlabel('SW_IND_CODE')
     plt.ylabel('Count')
