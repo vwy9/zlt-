@@ -30,9 +30,21 @@ def check_trade_day(user_date: int, conn):
         - 如果输入的日期是交易日，则返回 True
         - 如果输入的日期不是交易日，则返回 False
     """
+    # 创建一个游标对象 cursor
+    cursor = conn.cursor()
 
+    # 执行 SQL 查询
     query = f"SELECT TRADE_DAYS FROM ASHARECALENDAR WHERE TRADE_DAYS={user_date}"
-    df1 = pd.read_sql_query(query, conn)
+    cursor.execute(query)
+
+    # 获取所有记录，并将它们转换为 pandas DataFrame
+    data = cursor.fetchall()
+    columns = [column[0] for column in cursor.description]
+    df1 = pd.DataFrame(data, columns=columns)
+
+    # 关闭游标和连接
+    cursor.close()
+
     return not df1.empty  # 如果 DataFrame 是空的，则说明输入的日期不是交易日
 
 
