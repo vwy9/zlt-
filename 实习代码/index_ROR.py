@@ -81,7 +81,7 @@ def select_data_by_date_range(start_date: int, end_date: int, index_type):
         # 使用 pandas.concat 创建 DataFrame
     df = pd.concat([pd.DataFrame([i]) for i in data_list], ignore_index=True)
 
-    df.to_csv('./日期内收益率.csv', index=False)
+    df.to_csv('./result/日期内收益率.csv', index=False)
 
 
 def select_data_by_date_index(input_date: int, index_type):
