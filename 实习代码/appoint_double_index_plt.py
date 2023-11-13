@@ -214,16 +214,8 @@ if __name__ == "__main__":
     category1 = input("请输入指定的行业分布图的指数类别: ")
     df_defined = pd.read_csv('./result/appointed_list.csv')
     list_defined = df_defined['S_CON_WINDCODE'].tolist()
-    # 绘制行业分布图
-    # plot_industry_distribution(conn, category1)
+   
     plot_two_industry_distributions(conn, category1, list_defined)
-
-    # list1, name1 = index_component(conn, category1)
-    # print(list1)
-    # print(name1)
-    # industry_counts1, all1 = plot_industry_distribution(conn, list1)
-    # print(industry_counts1)
-    # print(all1)
 
     conn.close()
 
