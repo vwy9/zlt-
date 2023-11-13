@@ -3,11 +3,11 @@
 ### 项目一：指数以及行业分布柱状图
 
 #### . 输出一个csv/excel 类型的文件，分为三列： 行业代码、行业名称、标的数量、标的占比、行业指数当天涨跌
-single_index_plt.py \n
-industry_detail.py
+##### single_index_plt.py \n
+##### industry_detail.py
 
 ### 项目二：输入开始日期，截止日期和指数代码：计算等权的指数区间交易日内行情的涨跌，当天涨跌、隔夜涨跌、日内涨跌
-index_ROR.py
+##### index_ROR.py
 
 股票复权价格是一种对股票价格进行调整的方法，旨在消除除权除息对股价带来的影响，使得投资者可以更客观地分析股票的价格走势。在股票市场中，公司会定期进行除权除息操作，例如派发现金股利、进行股票拆细或合并等。这些操作会对股票的价格产生影响，导致价格出现突变。
 
@@ -21,10 +21,10 @@ index_ROR.py
 ##### 当天涨跌：今收-昨收
 
 ### 项目三. 对比特定的两个指数的一级行业分布区别情况
-appoint_double_index_plt.py
+##### appoint_double_index_plt.py
 
 ### utilities
-connect.py
-fuzzy_s.py
-nearest_trading_day.py
+##### connect.py
+##### fuzzy_s.py
+##### nearest_trading_day.py
 #### 所有的引用文件在reference中，结果保存在result
