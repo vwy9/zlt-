@@ -24,8 +24,9 @@ from connect import connect_to_database, wind
 from components_information_acquisition import components_ac, remove_from_list, \
      remove_nomore_n_days, add_elements, st_remove, sh50_components_freeshare, industry_distrubution
 from nearest_trading_day import calculate_trade_days
-from pre_parquet import pre_process_quote
+from pre_parquet import pre_process_quote, rsy_calculation
 from industry_market_plt import double_index_industry_plt
+
 
 
 # 市场权重
@@ -68,81 +69,51 @@ def save_to_csvf(components_list):
         df.to_csv(f'./quote/{date}/{stock}.SZ.csv')
 
 
-# 上证50靠档
-def process_rate(value):
-    if value <= 15:
-        return math.ceil(value)
-    elif value > 15 and value <= 20:
-        return 20
-    elif value > 20 and value <= 30:
-        return 30
-    elif value > 30 and value <=40:
-        return 40
-    elif value > 40 and value <= 50:
-        return 50
-    elif value > 50 and value <= 60:
-        return 60
-    elif value > 60 and value <= 70:
-        return 70
-    elif value > 70 and value <= 80:
-        return 80
-    elif value > 80:
-        return 100
-    else:
-        return value
-
-
-# 计算成分股权重
-def components_weight(df_shr, df_indicator):
-
-    df_merge = df_shr.merge(df_indicator, on='S_INFO_WINDCODE')
-    # 计算调整股本'ADJ_SHR_TODAY'
-    df_merge['rate'] = df_merge['FREE_SHARES_TODAY'] / df_merge['TOT_SHR_TODAY'] * 100
-    df_merge['ADJrate'] = df_merge['rate'].apply(process_rate)
-    df_merge['ADJ_SHR_TODAY'] = df_merge['ADJrate'] * df_merge['TOT_SHR_TODAY'] / 100
-    folder_path1 = f"./quote/{date}/detail_information"
-    # 使用 os.path.exists() 检查文件夹是否已经存在
-    if not os.path.exists(folder_path1):
-        # 如果文件夹不存在，则使用 os.makedirs() 创建文件夹
-        os.makedirs(folder_path1)
-    # 定义等权重列，并保存csv
-    df_merge['equal_weight'] = 1
-    df_result = df_merge[['S_INFO_WINDCODE', 'equal_weight',
-                          'S_DQ_CLOSE', 'S_DQ_OPEN', 'S_DQ_PRECLOSE',
-                          'S_DQ_ADJCLOSE', 'S_DQ_ADJOPEN', 'S_DQ_ADJPRECLOSE']]
-    df_merge.to_csv(f'./quote/{date}/detail_information/components.csv')
-
-    return df_result
-
-
-def quote_weight_prc(date, w_col):
-
-    folder_path = f'./quote/{date}_detail'  # 文件夹1的路径
-    df2 = pd.read_csv(f'./quote/{date}/detail_information/components.csv')
-
-    # 遍历文件夹中的所有文件
-    for filename in os.listdir(folder_path):
-        if filename.startswith('processed_reference') and filename.endswith('.csv'):  # 筛选以"processed_reference"开头且以.csv结尾的文件
-            file_path = os.path.join(folder_path, filename)  # 文件的完整路径
-            # 读取CSV文件
-            df1 = pd.read_csv(file_path)
-            # 找出'symbol'列的众数
-            mode_symbol = df1['symbol'].mode()
-
-            df2_select = df2[['S_INFO_WINDCODE', w_col]]
-
-            start_index = df2[df2['S_INFO_WINDCODE'] == mode_symbol[0]].index[0]
-
-            cal_weight_value = df2.loc[start_index, w_col].round(8)
-
-            df1['weight'] = cal_weight_value
-            df1['weight_prc'] = df1['last_prc'] * df1[w_col].round(8)
-
-            # 保存修改后的DataFrame到同名文件
-            output_path = os.path.join(folder_path, filename)
-            df1.to_csv(output_path, index=False)
-
-            print(f"Processed file: {filename}")
+# # 上证50靠档
+# def process_rate(value):
+#     if value <= 15:
+#         return math.ceil(value)
+#     elif value > 15 and value <= 20:
+#         return 20
+#     elif value > 20 and value <= 30:
+#         return 30
+#     elif value > 30 and value <=40:
+#         return 40
+#     elif value > 40 and value <= 50:
+#         return 50
+#     elif value > 50 and value <= 60:
+#         return 60
+#     elif value > 60 and value <= 70:
+#         return 70
+#     elif value > 70 and value <= 80:
+#         return 80
+#     elif value > 80:
+#         return 100
+#     else:
+#         return value
+#
+#
+# # 计算成分股权重
+# def components_weight(df_shr, df_indicator):
+#
+#     df_merge = df_shr.merge(df_indicator, on='S_INFO_WINDCODE')
+#     # 计算调整股本'ADJ_SHR_TODAY'
+#     df_merge['rate'] = df_merge['FREE_SHARES_TODAY'] / df_merge['TOT_SHR_TODAY'] * 100
+#     df_merge['ADJrate'] = df_merge['rate'].apply(process_rate)
+#     df_merge['ADJ_SHR_TODAY'] = df_merge['ADJrate'] * df_merge['TOT_SHR_TODAY'] / 100
+#     folder_path1 = f"./quote/{date}/detail_information"
+#     # 使用 os.path.exists() 检查文件夹是否已经存在
+#     if not os.path.exists(folder_path1):
+#         # 如果文件夹不存在，则使用 os.makedirs() 创建文件夹
+#         os.makedirs(folder_path1)
+#     # 定义等权重列，并保存csv
+#     df_merge['equal_weight'] = 1
+#     df_result = df_merge[['S_INFO_WINDCODE', 'equal_weight',
+#                           'S_DQ_CLOSE', 'S_DQ_OPEN', 'S_DQ_PRECLOSE',
+#                           'S_DQ_ADJCLOSE', 'S_DQ_ADJOPEN', 'S_DQ_ADJPRECLOSE']]
+#     df_merge.to_csv(f'./quote/{date}/detail_information/components.csv')
+#
+#     return df_result
 
 
 def pre_quote_information(date):
@@ -156,8 +127,9 @@ def pre_quote_information(date):
             print(f"Processing file: {filename}")  # 打印正在处理的文件名
             file_path = os.path.join(folder_path, filename)
             df1 = pd.read_csv(file_path)
+            rsy_sigma = rsy_calculation(conn, df1, date)
             try:
-                df_reference = pre_process_quote(df1)
+                df_reference = pre_process_quote(df1, rsy_sigma)
             except KeyError as e:
                 print(f"Error processing file: {filename}, error: {e}")
                 continue  # 如果处理文件出错，跳过剩余的代码并处理下一个文件
@@ -168,6 +140,7 @@ def pre_quote_information(date):
             df_reference.to_csv(new_file_path, index=False)
 
 
+# 自由流通市值加权
 def weight_prc(date, capital_df):
     folder_path = f'./quote/{date}_detail'  # 文件夹1的路径
 
@@ -192,6 +165,7 @@ def weight_prc(date, capital_df):
             print(f"Processed file: {filename}")
 
 
+# 整合成分股quote数据
 def final_to_plt(date):
 
     folder_path = f'quote/{date}_detail'  # 文件夹路径
@@ -229,6 +203,7 @@ def final_to_plt(date):
     print(f"Output file: {output_path}")
 
 
+# 画图
 def quote_plt(date):
 
     df = pd.read_csv(f'./quote/{date}_detail/{date}_result.csv')
@@ -314,6 +289,28 @@ def quote_plt(date):
     plt.savefig(f'./{date}.png')
 
     plt.show()
+
+
+# 比较指数和捏合指数三秒行情收益率差异
+def indat_ror_comparison():
+    df = pd.read_csv('./resampled.csv')
+    start_idx = (df['time'] == 93030000).idxmax()
+    df1 = df.loc[start_idx:]
+    df2 = pd.DataFrame()
+    df2['ror_components'] = (df1['prc_sum'] - df1['prc_sum'].shift(1)) / df1['prc_sum'].shift(1)
+    df2 = df2.reset_index()
+
+    df3 = pd.read_csv('./resampled2.csv')
+    start_idx1 = (df3['time'] == 93030000).idxmax()
+
+    df4 = df3.loc[start_idx1:]
+    df4 = df4[['index', 'last_prc']]
+    df5 = pd.DataFrame()
+    df5['ror_index'] = (df4['last_prc'] - df4['last_prc'].shift(1)) / df4['last_prc'].shift(1)
+
+    df5 = df5.merge(df2)
+    df5.to_csv('./inday_ror.csv')
+    print(df5)
 
 
 if __name__ == "__main__":
