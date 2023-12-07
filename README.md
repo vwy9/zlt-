@@ -44,7 +44,7 @@
 
 #### 输出一个csv/excel 类型的文件，分为三列： 行业代码、行业名称、标的数量、标的占比、行业指数当天涨跌
 1. components_information_acquisition.components_ac
-  2. components_information_acquisition.industry_distrubution ->indusry_market_plt.single_index_industry_plt
+  components_information_acquisition.industry_distrubution ->indusry_market_plt.single_index_industry_plt
   3. components_information_acquisition.components_ac -> rate_or_return.components_single_date_industry_ror
 
 
