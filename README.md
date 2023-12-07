@@ -1,4 +1,5 @@
 ## zlt-
+#### 所有的引用文件在reference中，结果保存在result
 
 ### components_information_acquisition.py 包含
 1. 指定日期当天最新成分股 def components_ac  
@@ -44,9 +45,8 @@
 
 #### 输出一个csv/excel 类型的文件，分为三列： 行业代码、行业名称、标的数量、标的占比、行业指数当天涨跌
 1. components_information_acquisition.components_ac
-1.1. components_information_acquisition.industry_distrubution ->indusry_market_plt.single_index_industry_plt
-   df
-1.2 components_information_acquisition.components_ac -> rate_or_return.components_single_date_industry_ror
+2. components_information_acquisition.industry_distrubution ->indusry_market_plt.single_index_industry_plt
+3. components_information_acquisition.components_ac -> rate_or_return.components_single_date_industry_ror
 
 
 ### 项目二：输入开始日期，截止日期和指数代码：计算等权的指数区间交易日内行情的涨跌，当天涨跌、隔夜涨跌、日内涨跌
@@ -66,11 +66,19 @@
 2. components_information_acquisition.components_ac
 3. indusry_market_plt.double_index_industry_plt
 
-#### 所有的引用文件在reference中，结果保存在result
-1. components_information_acquisition.components_ac
-2. 
-
 
 ### 项目四：定制化指数与定制化指数的日内行情
 1. components_information_acquisition.components_ac
-   1.1 
+   1.1 components_information_acquisition.industry_distrubution
+   1.2 st_remove
+   1.3 remove_nomore_n_days
+   1.4 remove_from_list
+   1.5 add_elements
+2. components_information_acquisition.industry_distrubution
+3. industry_market_plt.double_index_industry_plt
+4. quote.information.save_to_csvf
+   pre_quote_information
+   capital_today_df = sh50_components_freeshare
+   weight_prc
+   final_to_plt
+   quote_plt
