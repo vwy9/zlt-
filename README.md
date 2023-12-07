@@ -1,10 +1,13 @@
 ## zlt-
 
+#### components_information_acquisition.py 包含
+##### 1. 指定日期当天最新成分股def components_ac  2. 获得成分股的WIND一级行业分布 def industry_distrubution 3. 判断板块分布功能 def market_distribution 4. ST, *ST 成分股剔除 def st_remove 5. 去除不满上市不满n天的成分股 def remove_nomore_n_days 6. 去除指定成分股 def remove_from_list 7. 添加指定股票 def add_elements
+
 ### 项目一：指数以及行业分布柱状图
 
 #### . 输出一个csv/excel 类型的文件，分为三列： 行业代码、行业名称、标的数量、标的占比、行业指数当天涨跌
 ##### components_information_acquisition.py ---def components_ac -> def industry_distrubution ->indusry_market_plt.py def single_index_industry_plt
--> rate_or_return.py def components_single_date_industry_ror
+##### components_information_acquisition.py ---def components_ac -> rate_or_return.py def components_single_date_industry_ror
 
 
 ### 项目二：输入开始日期，截止日期和指数代码：计算等权的指数区间交易日内行情的涨跌，当天涨跌、隔夜涨跌、日内涨跌
