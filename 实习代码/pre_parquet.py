@@ -4,10 +4,13 @@
 # @File：pre_parquet.py
 # @Desc: 说明：预处理parquet数据
 # @Software: PyCharm
+import math
 import os
 
 import pandas as pd
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
+
+import pymysql
 from brokenaxes import brokenaxes
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,7 +22,38 @@ font = FontProperties(fname=font_path)
 plt.rcParams['font.family'] = font.get_name()
 
 
-def pre_process_quote(df):
+def rsy_calculation(conn, df, date):
+
+    given_date_str = str(date)
+    given_date = datetime.strptime(given_date_str, "%Y%m%d").date()
+    delta = timedelta(days=30)
+    past_date_int = int((given_date - delta).strftime("%Y%m%d"))
+    print(past_date_int)
+
+    list_str = df['symbol'].mode().to_string(index=False)
+    query = f"SELECT S_INFO_WINDCODE, S_DQ_CLOSE, S_DQ_PRE_CLOSE, S_DQ_OPEN, S_DQ_HIGH, S_DQ_LOW " \
+            f"FROM ASHAREEODPRICES " \
+            f"WHERE S_INFO_WINDCODE IS '{list_str}' " \
+            f"AND (CAST(TRADE_DT AS SIGNED) <= {date} AND CAST(TRADE_DT AS SIGNED) >= {past_date_int}) "
+    try:
+        # 重新开启游标对象，执行查询
+        cursor = conn.cursor()
+        cursor.execute(query)
+        columns = [desc[0] for desc in cursor.description]
+        rsy_df = pd.DataFrame(query, columns=columns)
+        rsy_df['u'] = math.log(rsy_df['S_DQ_HIGH']) - math.log(rsy_df['S_DQ_OPEN'])
+        rsy_df['d'] = math.log(rsy_df['S_DQ_LOW']) - math.log(rsy_df['S_DQ_OPEN'])
+        rsy_df['c'] = math.log(rsy_df['S_DQ_CLOSE']) - math.log(rsy_df['S_DQ_OPEN'])
+        rsy_df['rsy'] = rsy_df['u'] * (rsy_df['u'] - rsy_df['c']) + rsy_df['d'] * (rsy_df['d'] - rsy_df['c'])
+        rsy_sigma = rsy_df['rsy'].mean()
+
+    except pymysql.Error as e:
+        print(f"执行查询发生错误: {e}")
+
+    return rsy_sigma
+
+
+def pre_process_quote(df, rsy_sigma):
 
     columns_to_keep = ['symbol', 'date', 'time', 'recv_time', 'last_prc', 'volume', 'ask_prc1', 'bid_prc1',
                        'ask_vol1', 'bid_vol1', 'high_limited', 'low_limited', 'prev_close', 'open']
@@ -147,13 +181,12 @@ def pre_process_quote(df):
     for idx in range(start_index + 1, len(df)):
         df.loc[idx, 't_volume'] = df.loc[idx, 'volume'] - df.loc[idx - 1, 'volume']
 
-
     # 创建新的列 "outlier"，初始化为 0
     df['outlier'] = 0
     for idx in range(start_index + 1, len(df)):
         # 只考虑从 start_index 到该行前一行的数据，计算平均值和标准差
         mean = df.loc[start_index:idx - 1, 'last_prc'].mean()
-        std = df.loc[start_index:idx - 1, 'last_prc'].std()
+        std = rsy_sigma
 
         # 如果 "last_price" 列的值在 3σ 之外，则标记为 1，否则为 0
         df.loc[idx, 'outlier'] = np.where((df.loc[idx, 'last_prc'] < mean - 3 * std) |
