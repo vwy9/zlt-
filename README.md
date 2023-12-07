@@ -77,8 +77,8 @@
 2. components_information_acquisition.industry_distrubution
 3. industry_market_plt.double_index_industry_plt
 4. quote.information.save_to_csvf
-   pre_quote_information
-   capital_today_df = sh50_components_freeshare
-   weight_prc
-   final_to_plt
-   quote_plt
+   4.1 pre_quote_information
+   4.2 capital_today_df = sh50_components_freeshare
+   4.3 weight_prc
+   4.4 final_to_plt
+   4.5 quote_plt
