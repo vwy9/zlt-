@@ -3,8 +3,9 @@
 ### 项目一：指数以及行业分布柱状图
 
 #### . 输出一个csv/excel 类型的文件，分为三列： 行业代码、行业名称、标的数量、标的占比、行业指数当天涨跌
-##### single_index_plt.py \n
-##### industry_detail.py
+##### components_information_acquisition.py ---def components_ac -> def industry_distrubution ->indusry_market_plt.py def single_index_industry_plt
+                                                                 -> rate_or_return.py def components_single_date_industry_ror
+
 
 ### 项目二：输入开始日期，截止日期和指数代码：计算等权的指数区间交易日内行情的涨跌，当天涨跌、隔夜涨跌、日内涨跌
 ##### index_ROR.py
