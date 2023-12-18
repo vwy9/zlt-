@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 import pymysql
 
+import connect
+
 
 # 在有指数指标代码存在时：S_INFO_WINDCODE -> 指数代码    S_CON_WINDCODE -> 成分股代码
 # 在无指数指标存在时： S_INFO_WINDCODE -> 成分股代码
@@ -16,7 +18,7 @@ import pymysql
 
 
 # 指定日期当天最新成分股
-def components_ac(conn, index: str, date: int):
+def components_ac(conn, index, date):
 
     """
         :param conn: 链接数据库connect
@@ -52,7 +54,6 @@ def components_ac(conn, index: str, date: int):
         # 建立游标对象，执行查询
         cursor = conn.cursor()
         cursor.execute(query_step)
-        # 获取查询结果
         components_result = cursor.fetchall()
         columns = [desc[0] for desc in cursor.description]
         selected_data = pd.DataFrame(components_result, columns=columns)
@@ -67,16 +68,16 @@ def components_ac(conn, index: str, date: int):
 
 
 # 获得成分股的WIND一级行业分布信息
-def industry_distrubution(conn, list):
+def industry_distrubution(conn, components_list):
 
     """
     :param conn: 链接数据库conn
-    :param list: 需要找到一级行业分布的list
+    :param components_list: 需要找到一级行业分布的list
     :return: S_INFOWINDCODE : WIND_Level1_Industry --df
     """
 
     # 成分股list转换为str, ', '分隔
-    list_str = ', '.join(list)
+    list_str = "', '".join(components_list)
 
     query_step = f"SELECT S_INFO_WINDCODE, WIND_IND_CODE " \
                  f"FROM ASHAREINDUSTRIESCLASS " \
@@ -86,13 +87,16 @@ def industry_distrubution(conn, list):
         # 重新开启游标对象，执行查询
         cursor = conn.cursor()
         cursor.execute(query_step)
+        result = cursor.fetchall()
         columns = [desc[0] for desc in cursor.description]
-        industry_distribution_df = pd.DataFrame(query_step, columns=columns)
+        industry_distribution_df = pd.DataFrame(result, columns=columns)
         industry_distribution_df['WIND_IND_CODE'] = industry_distribution_df['WIND_IND_CODE'] \
             .apply(lambda x: x[:-6] + '000000' if isinstance(x, str) and x[-6:].isdigit() else x)
 
-        # 使用'name'列中的值来替换'ind_code'列中的对应值，使用replace()函数将df中'WIND_IND_CODE'列中的值替换为mapping_dict中的对应值
+        # 使用'name'列中的值来替换'ind_code'列中的对应值，
+        # 使用replace()函数将df中'WIND_IND_CODE'列中的值替换为mapping_dict中的对应值
         mapping_df = pd.read_csv('./reference/wind_industry_level_1.csv')
+        mapping_df['ind_code'] = mapping_df['ind_code'].astype(str)
         mapping_dict = dict(zip(mapping_df['ind_code'], mapping_df['name']))
         industry_distribution_df['industry_chinese_name'] = industry_distribution_df['WIND_IND_CODE'].replace(
                                                                                                         mapping_dict)
@@ -107,7 +111,7 @@ def industry_distrubution(conn, list):
 
 
 # 判断板块分布功能
-# 在 DataFrame 的 S_INFO_WINDCODE 列上应用函数  使用方法：df['Market_Name'] = df.apply(assign_market_weight, axis=1)
+# 在 DataFrame 的 S_INFO_WINDCODE 列上应用函数  使用方法：df['Market_Name'] = df.apply(market_distribution, axis=1)
 def market_distribution(S_INFO_WINDCODE_df):
 
     """
@@ -212,10 +216,10 @@ def remove_nomore_n_days(conn, list, n_days: int, date: int):
 
 
 # 去除指定成分股
-def remove_from_list(list1):
+def remove_add_elemets(list1):
 
     """
-    :param list: 原始成分股名单list
+    :param lilist1st: 原始成分股名单list
     :return: 删去指定股票的成分股list
     """
 
@@ -223,26 +227,15 @@ def remove_from_list(list1):
     delete_input_list = delete_input.split(',')
     filtered_list = [item for item in list1 if item not in delete_input_list]
 
-    return filtered_list
-
-
-# 添加指定股票
-def add_elements(list1):
-
-    """
-        :param list: 原始成分股名单list
-        :return: 添加指定股票的成分股list
-        """
-
-    add_input = input("请输入你想从列表中删除的字符串，多个字符串请用逗号分隔：")
+    add_input = input("请输入你想从列表中加入的字符串，多个字符串请用逗号分隔：")
     if add_input:
         add_input_list = add_input.split(',')
-        added_list = list1 + add_input_list
-        added_list = list(set(added_list))
+        added_list = filtered_list + add_input_list
+        result_list = list(set(added_list))
     else:
-        added_list = list1
+        result_list = filtered_list
 
-    return added_list
+    return result_list
 
 
 def sh50_components_freeshare(conn, date):
@@ -274,6 +267,24 @@ def sh50_components_freeshare(conn, date):
 # conn = connect.connect_to_database(connect.wind)
 # df = sh50_components_freeshare(conn, date)
 # df.to_csv('./20231130.csv')
+
+# demo part
+if __name__ == "__main__":
+    conn = connect.connect_to_database(connect.wind)
+    index = '000016.SH'
+    date = int(20230921)
+    name_result_str, components_list = components_ac(conn, index, date)
+    industry_distrubution_df = industry_distrubution(conn, components_list)
+    print(industry_distrubution_df)
+    industry_distrubution_df['Market_Name'] = industry_distrubution_df.apply(market_distribution, axis=1)
+    print(industry_distrubution_df)
+    rm90_list = remove_nomore_n_days(conn, components_list, 90, date)
+    print(rm90_list)
+    final_list = remove_add_elemets(components_list)
+    print(len(final_list))
+
+    sh_50_df = sh50_components_freeshare(conn, date)
+    print(sh_50_df)
 
 
 
