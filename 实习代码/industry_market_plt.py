@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib.ticker as ticker
 import os
 
+import components_information_acquisition
+import connect
 
 # 指定中文字体
 font_path = './reference/Arial Unicode.ttf'
@@ -31,6 +33,7 @@ def code_to_name(df):
     # 创建一个新的 Series，索引为所有行业名称，值初始化为 0
     all_industries = mapping_df['name'].tolist()
     industry_counts = pd.Series(0, index=all_industries)
+    industry_counts.update(wind_code_counts)
 
     return industry_counts, all_industries
 
@@ -161,6 +164,7 @@ def double_index_industry_plt(df1, df2, name_str1, name_str2):
     plt.show()
 
 
+# 成分股市场分布
 def market_plt(df, name1):
 
     """
@@ -190,6 +194,24 @@ def market_plt(df, name1):
     ax.axis('equal')
     plt.savefig(f'./result/market_plt_result/{name1}市场分布情况.png')
     plt.show()
+
+
+# demo part
+if __name__ == "__main__":
+    conn = connect.connect_to_database(connect.wind)
+    index = '000016.SH'
+    date = 20230921
+    index2 = '399303.SZ'
+
+    name_str, components_list = components_information_acquisition.components_ac(conn, index, date)
+    name_str2, components_list2 = components_information_acquisition.components_ac(conn, index2, date)
+    industry_df = components_information_acquisition.industry_distrubution(conn, components_list)
+    industry_df2 = components_information_acquisition.industry_distrubution(conn, components_list2)
+    double_index_industry_plt(industry_df, industry_df2, name_str, name_str2)
+    single_index_industry_plt(industry_df, name_str)
+    industry_df['Market_Name'] = industry_df.apply(components_information_acquisition.market_distribution, axis=1)
+    market_plt(industry_df, name_str)
+
 
 
 
