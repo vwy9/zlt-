@@ -82,3 +82,11 @@
    4.3 weight_prc
    4.4 final_to_plt
    4.5 quote_plt
+
+### 项目五：日内择时回测框架
+
+
+## 本次更新：
+class类，connect_class, components_class 
+修复industry_market_plt.py， components_information_acquisition.py， nearest_trading_day.py内所有发现错误
+
