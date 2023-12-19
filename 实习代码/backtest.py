@@ -10,7 +10,8 @@ from handle_inday_data import handle_inday, weight_martrix
 
 
 class IndexBacktest:
-    def __init__(self, weight_data, initial_investment_weight, benchmark, rf_rate=0.04, trade_tax=0.0003, stamp_tax=0.0005,):
+    def __init__(self, weight_data, initial_investment_weight, benchmark, rf_rate=0.04, trade_tax=0.0003,
+                 stamp_tax=0.0005, ):
         self.weight_data = weight_data
         self.trade_tax = trade_tax
         self.stamp_tax = stamp_tax
@@ -20,7 +21,6 @@ class IndexBacktest:
         self.results = None
         self.metrics = None
         self.benchmark = benchmark
-
 
     def linear_full_signals(self):
         df = pd.read_csv('./reference/timestamp_standard.csv')
@@ -318,22 +318,25 @@ def calculate_metrics(combined_df, trading_date):
 
     # 从第二列开始遍历 DataFrame 的列
     for i in range(len(combined_df.columns)):
+        initial_col = combined_df.columns[0]
         current_col = combined_df.columns[i]
         previous_col = combined_df.columns[i - 1] if i > 0 else None
 
         # 如果不是第一列，则执行计算
         if previous_col is not None:
             r_overnight[current_col] = ((combined_df.at['r_start', current_col] - combined_df.at[
-                'r_end', previous_col]) / 2) \
-                                       / combined_df.at['r_end', previous_col]
-            r_inday[current_col] = combined_df.at['r_end', current_col] / combined_df.at['r_start', current_col] - 1
-            r_day[current_col] = combined_df.at['r_end', current_col] / combined_df.at['r_end', previous_col] - 1
+                'r_end', previous_col]) / 2) / combined_df.at['r_start', initial_col]
+            r_inday[current_col] = (combined_df.at['r_end', current_col] - combined_df.at['r_start', current_col]) \
+                / combined_df.at['r_start', initial_col]
+            r_day[current_col] = (combined_df.at['r_end', current_col] - combined_df.at['r_end', previous_col]) \
+                / combined_df.at['r_start', initial_col]
 
             rm_overnight[current_col] = ((combined_df.at['rm_start', current_col] - combined_df.at[
-                'rm_end', previous_col]) / 2) \
-                                        / combined_df.at['rm_end', previous_col]
-            rm_inday[current_col] = combined_df.at['rm_end', current_col] / combined_df.at['rm_start', current_col] - 1
-            rm_day[current_col] = combined_df.at['rm_end', current_col] / combined_df.at['rm_end', previous_col] - 1
+                'rm_end', previous_col]) / 2) / combined_df.at['r_start', initial_col]
+            rm_inday[current_col] = (combined_df.at['rm_end', current_col] - combined_df.at['rm_start', current_col]) \
+                / combined_df.at['r_start', initial_col]
+            rm_day[current_col] = (combined_df.at['rm_end', current_col] - combined_df.at['rm_end', previous_col]) \
+                / combined_df.at['r_start', initial_col]
         else:
             # 如果是第一列，则赋值为空值
             r_overnight[current_col] = np.nan
@@ -378,7 +381,7 @@ if __name__ == "__main__":
         backtest = IndexBacktest(weight_data, initial_investment_weight, benchmark_value)
 
         backtest.linear_full_signals()
-    # _ 定义日内全部交易
+        # _ 定义日内全部交易
         daily_portfolio, _, benchmark = backtest.generate_portfolio()
         print(daily_portfolio)
         if benchmark_value is None:
