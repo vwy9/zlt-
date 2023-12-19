@@ -11,6 +11,12 @@
 7. 添加指定股票 def add_elements
 8. 获取上证50当天最新自由流通股本 def sh50_components_freeshare
 
+### handle_inday_data.py 包含
+处理过的quote数据进行handle_inday_data.py 处理3s采样，加入权重
+
+### backtest.py 包含
+回测框架，详见项目五
+
 ### rate_or_return.py 包含
 1. 判断日期是否为交易日 def check_trade_da
 2. 成分股捏合指数单日收益率计算 def sh50_components_single_date_ror (inday解决 overnight，day因为自由流通股本问题尚未解决)
