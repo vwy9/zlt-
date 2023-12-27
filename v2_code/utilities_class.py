@@ -166,12 +166,12 @@ class Datapreprocess:
         for stock in listsh_numbers_only:
             file_path = f'/Volumes/data/tick/stock/{date}/quote/sh_{stock}_{date}_quote.parquet'  # 替换为实际的文件路径
             df = pd.read_parquet(file_path)
-            df.to_csv(f'./quote/{date}/{stock}_SH.csv')
+            df.to_csv(f'./quote/{date}/{stock}_SH.csv', index=False)
 
         for stock in listsz_numbers_only:
             file_path = f'/Volumes/data/tick/stock/{date}/quote/sz_{stock}_{date}_quote.parquet'  # 替换为实际的文件路径
             df = pd.read_parquet(file_path)
-            df.to_csv(f'./quote/{date}/{stock}_SZ.csv')
+            df.to_csv(f'./quote/{date}/{stock}_SZ.csv', index=False)
 
     @staticmethod
     def index_save_to_csvf(components_list, date):
@@ -193,12 +193,12 @@ class Datapreprocess:
         for stock in listsh_numbers_only:
             file_path = f'/Volumes/data/tick/stock/{date}/quote/sh_{stock}_{date}_quote.parquet'  # 替换为实际的文件路径
             df = pd.read_parquet(file_path)
-            df.to_csv(f'./quote/{date}/index_{stock}.SH.csv')
+            df.to_csv(f'./quote/{date}/index_{stock}.SH.csv', index=False)
 
         for stock in listsz_numbers_only:
             file_path = f'/Volumes/data/tick/stock/{date}/quote/sz_{stock}_{date}_quote.parquet'  # 替换为实际的文件路径
             df = pd.read_parquet(file_path)
-            df.to_csv(f'./quote/{date}/index_{stock}.SZ.csv')
+            df.to_csv(f'./quote/{date}/index_{stock}.SZ.csv', index=False)
 
     # 将储存的数据进行预处理
     @staticmethod
@@ -259,6 +259,11 @@ class Datapreprocess:
         df.sort_values(by=['time', 'recv_time'], inplace=True)
         df.drop_duplicates(subset='time', keep='first', inplace=True)
 
+        # 裁剪92500000-quote行情结束
+        index_location1 = df[df['time'] == 92500000].index.min()
+        row_number1 = df.index.get_loc(index_location1)
+        df = df.loc[row_number1:].reset_index(drop=True)
+
         # 将时间整数转换为 datetime 对象，3s重采样
         df['time'] = df['time'].apply(Datapreprocess.convert_int_to_time)
         df_resampled = df.set_index('time').resample('3S').asfreq()
@@ -268,20 +273,25 @@ class Datapreprocess:
         # 在原始的 df 中添加重采样后的数据，reindex
         df = pd.merge(df, df_resampled, how='outer')
         df = df.sort_values('time')
-        df.reset_index(drop=True, inplace=True)
 
-        # 裁剪92500000-150000000
-        index_location1 = df[df['time'] == 92500000].index.min()
-        row_number1 = df.index.get_loc(index_location1)
-        index_location2 = df[df['time'] == 150000000].index.min()
-        row_number2 = df.index.get_loc(index_location2)
-        df = df.loc[row_number1:row_number2].reset_index(drop=True)
+        # 检查recv_time 是否全天缺失, 如果全部缺失用同行time来填充
+        if df['recv_time'].isnull().all():
+            df['recv_time'] = df['time']
+        elif df['recv_time'].isnull().any():
+            df['recv_time'] = df['recv_time'].fillna(df['time'])
+
+        # 统一symbol, date, open, pre_close, high_limited, low_limited
+        columns_to_replace = ['symbol', 'date', 'open', 'prev_close', 'high_limited', 'low_limited']
+        # 使用 lambda 函数替换每列的值为该列的众数
+        for column in columns_to_replace:
+            df[column] = (lambda col: df[col].mode()[0])(column)
+        df.reset_index(drop=True, inplace=True)
 
         # 创建一个新的 'fill' 列，如果行中存在空值则为1，否则为0
         df['fill'] = df.apply(lambda x: 1 if x.isnull().any() else 0, axis=1)
 
         # 创建 "index_Resource" 列，标记所有非空行为 'self'
-        df['index_Resource'] = df.apply(lambda x: 'self' if x.notna().all() else np.nan, axis=1)
+        df['index_resource'] = df.apply(lambda x: 'self' if x.notna().all() else np.nan, axis=1)
 
         # 创建 "Time" 列，标记所有非空行为 'self'
         df['Time'] = df.apply(lambda x: x['time'] if x.notna().all() else np.nan, axis=1)
@@ -289,10 +299,10 @@ class Datapreprocess:
         # 遍历 DataFrame 的每一行,将 "index_Resource" 填充为最近的非空行的索引
         last_non_na_index = None
         for idx, row in df.iterrows():
-            if row['index_Resource'] == 'self':
+            if row['index_resource'] == 'self':
                 last_non_na_index = idx
             else:
-                df.at[idx, 'index_Resource'] = last_non_na_index
+                df.at[idx, 'index_resource'] = last_non_na_index
 
         # 遍历 DataFrame 的每一行,将 "recv_time" 填充为最近的非空行的recv_time
         last_non_na_rectime = None
@@ -310,32 +320,29 @@ class Datapreprocess:
             else:
                 df.at[idx, 'Time'] = last_non_na_time
 
-        # 找到 "time" 列大于等于 93000000 的行的起始索引
-        start_index = df[df['time'] >= 93000000].index[0]
         df.fillna(method='ffill', inplace=True)
 
         # 创建新的列 "t_volumn"，当前3s时刻的交易量
         df['t_volume'] = 0
-        df.loc[start_index, 't_volume'] = df.loc[start_index, 'volume']
-        for idx in range(start_index + 1, len(df)):
+        df.loc[index_location1, 't_volume'] = df.loc[index_location1, 'volume']
+        for idx in range(index_location1 + 1, len(df)):
             df.loc[idx, 't_volume'] = df.loc[idx, 'volume'] - df.loc[idx - 1, 'volume']
 
         # 创建新的列 "outlier"，初始化为 0
         df['outlier'] = 0
-        for idx in range(start_index + 1, len(df)):
-            # 只考虑从 start_index 到该行前一行的数据，计算平均值和标准差
-            mean = df.loc[start_index:idx - 1, 'last_prc'].mean()
+        for idx in range(index_location1 + 1, len(df)):
+            df.at[idx, 'price_change_pct'] = ((df.at[idx, 'last_prc'] - df.at[idx, 'prev_close']) / df.at[idx, 'prev_close'])
             std = rsy_sigma
 
             # 如果 "last_price" 列的值在 3σ 之外，则标记为 1，否则为 0
-            df.loc[idx, 'outlier'] = np.where((df.loc[idx, 'last_prc'] < mean - 3 * std) |
-                                              (df.loc[idx, 'last_prc'] > mean + 3 * std), 1, 0)
+            df.loc[idx, 'outlier'] = np.where((df.loc[idx, 'price_change_pct'] < 3 * std) |
+                                              (df.loc[idx, 'price_change_pct'] > 3 * std), 1, 0)
 
         # 从数据框的第93000000行开始
         df['middle'] = None
-        df.loc[:start_index - 1, 'middle'] = 0
+        df.loc[:index_location1 - 1, 'middle'] = 0
         # 逐行应用middle逻辑
-        for idx in range(start_index, len(df)):
+        for idx in range(index_location1, len(df)):
             # 提取列的值
             vol = df.loc[idx, 't_volume']
             bid = df.loc[idx, 'bid_prc1']
@@ -363,10 +370,10 @@ class Datapreprocess:
                     df.loc[idx, 'middle'] = pre_settle_prc
 
         # 加权成交价，数量加权价格
-        df.loc[:start_index - 1, 'acc_weight_price'] = 0
+        df.loc[:index_location1 - 1, 'acc_weight_price'] = 0
         cumulative_prc_volume = 0
         cumulative_volume = 0
-        for idx in range(start_index, len(df)):
+        for idx in range(index_location1, len(df)):
             # 计算当前行的last_prc * t_volume和volume
             prc_volume = df.loc[idx, 'last_prc'] * df.loc[idx, 't_volume']
             volume = df.loc[idx, 't_volume']
@@ -387,10 +394,21 @@ class Datapreprocess:
                         (row['last_prc'] == row['low_limited'] and row['bid_vol1'] == 0)):
                     df.loc[idx, 'stop'] = 1
 
+        # 特殊处理last_prc, volumn 两列，将所有0变为null然后ffill
+        df['last_prc'].replace(0, np.nan, inplace=True)
+        df['volume'].replace(0, np.nan, inplace=True)
         df.fillna(method='ffill', inplace=True)
-        df['last_prc'] = df['last_prc'].astype(float).round(2)
+        df.reset_index(drop=True, inplace=True)
 
+        # 这里处理index_resource 以价格为优先
+        first_non_null_index = df['last_prc'].first_valid_index()
+        next_non_last_prc = df.at[first_non_null_index, 'last_prc']
+        df.loc[:first_non_null_index - 1, 'last_prc'] = next_non_last_prc
+        df.loc[:first_non_null_index - 1, 'index_resource'] = first_non_null_index
 
+        first_non_null_index2 = df['volume'].first_valid_index()
+        next_non_volume = df.at[first_non_null_index, 'last_prc']
+        df.loc[:first_non_null_index2 - 1, 'volume'] = next_non_volume
 
         df_result = df
 
@@ -464,18 +482,63 @@ class Datapreprocess:
                 df_resampled['time'] = df_resampled['time'].apply(Datapreprocess.convert_time_to_int)
                 df_resampled.reset_index(inplace=True)
 
-                df_resampled.drop(
-                    df_resampled[(df_resampled['time'] > 113000000) &
-                                 (df_resampled['time'] < 130000000)].index,
-                    inplace=True)
+                # 特殊处理92500000
+                index_location1 = df_resampled.loc[df_resampled['time'] == 92500000, 'time'].index.min()
+                index_location2 = df_resampled.loc[df_resampled['time'] < 93000000, 'time'].idxmax() if (
+                            df_resampled['time'] < 93000000).any() else None
+                self_rows = df_resampled.loc[index_location1:index_location2][
+                    df_resampled.loc[index_location1:index_location2, 'index_resource']
+                    == 'self']
 
-                df_resampled.drop(
-                    df_resampled[(df_resampled['time'] < 93000000)].index,
-                    inplace=True)
+                # 保存目标行（'92500000'）的 'time' 和 'recv_time' 原始值。
+                original_time1 = df_resampled.loc[index_location1, 'time']
+                original_recv_time1 = df_resampled.loc[index_location1, 'recv_time']
 
-                df_resampled.drop(
-                    df_resampled[(df_resampled['time'] > 150000000)].index,
-                    inplace=True)
+                # 如果存在符合条件的行，则使用第一条符合条件的行替换 '92500000' 行的数据，但除了 'time' 和 'recv_time'。
+                # 如果不存在符合条件的行，则使用该区间最后一行数据替换 '92500000' 行的数据，但除了 'time' 和 'recv_time'。
+                if not self_rows.empty:
+                    replacement_data = self_rows.iloc[-1].drop(['time', 'recv_time'])
+                    df_resampled.loc[index_location1, replacement_data.index] = replacement_data
+                else:
+                    replacement_data = df.loc[index_location2].drop(['time', 'recv_time'])
+                    df_resampled.loc[index_location1, replacement_data.index] = replacement_data
+
+                # 恢复 '92500000' 行的 'time' 和 'recv_time' 原始值。
+                df_resampled.loc[index_location1, 'time'] = original_time1
+                df_resampled.loc[index_location1, 'recv_time'] = original_recv_time1
+
+                # 同理特殊处理150000000
+                index_location3 = df_resampled.loc[df_resampled['time'] == 150000000, 'time'].index.min()
+                index_location4 = df_resampled.loc[df_resampled['time'] > 150000000, 'time'].idxmax() if (
+                            df_resampled['time'] > 150000000).any() else None
+                self_rows = df_resampled.loc[index_location3:index_location4][
+                    df_resampled.loc[index_location3:index_location4, 'index_resource']
+                    == 'self']
+
+                original_time2 = df_resampled.loc[index_location3, 'time']
+                original_recv_time2 = df_resampled.loc[index_location3, 'recv_time']
+
+                if not self_rows.empty:
+                    replacement_data = self_rows.iloc[-1].drop(['time', 'recv_time'])
+                    df_resampled.loc[index_location3, replacement_data.index] = replacement_data
+                else:
+                    replacement_data = df.loc[index_location2].drop(['time', 'recv_time'])
+                    df_resampled.loc[index_location3, replacement_data.index] = replacement_data
+
+                df_resampled.loc[index_location3, 'time'] = original_time2
+                df_resampled.loc[index_location3, 'recv_time'] = original_recv_time2
+
+                # 裁剪df
+
+                time_ranges = [(93000000, 113000000), (130000000, 145700000)]
+                time_points = [92500000, 150000000]
+
+                # 使用布尔索引筛选出符合条件的行
+                # 条件是时间在92500000，93000000-113000000，130000000-145700000，150000000之间
+                condition = df_resampled['time'].isin(time_points)
+                for start, end in time_ranges:
+                    condition |= (df_resampled['time'] >= start) & (df_resampled['time'] <= end)
+                df_resampled = df_resampled[condition]
                 df_resampled.reset_index(inplace=True)
 
                 # 保存结果 DataFrame 到新的 CSV 文件
@@ -509,10 +572,10 @@ class Datapreprocess:
         df_weights_concatenated = pd.concat(weights_dfs, axis=1)
         # min_value = df_weights_concatenated.iloc[0]
         # normalized_data = df_weights_concatenated.divide(min_value)
-        df_weights_concatenated.to_csv(f'./quote/{date}_detail/weight_matrix.csv')
+        df_weights_concatenated.to_csv(f'./quote/{date}_detail/weight_matrix.csv', index=False)
         prc_sum = pd.DataFrame()
         prc_sum['prc_sum'] = df_weights_concatenated.sum(axis=1)
-        prc_sum.to_csv(f'./quote/{date}_detail/components_prc_sum.csv')
+        prc_sum.to_csv(f'./quote/{date}_detail/components_prc_sum.csv', index=False)
         return df_weights_concatenated
 
 
