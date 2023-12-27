@@ -19,7 +19,12 @@ class Factorcalculation:
         query = f"SELECT S_INFO_WINDCODE, S_DQ_CLOSE, S_DQ_OPEN, S_DQ_HIGH, S_DQ_LOW " \
                 f"FROM ASHAREEODPRICES " \
                 f"WHERE S_INFO_WINDCODE IN ('{list_str}') " \
-                f"AND (CAST(TRADE_DT AS SIGNED) < {date} AND CAST(TRADE_DT AS SIGNED) >= {past_date_int}) "
+                f"AND (CAST(TRADE_DT AS SIGNED) < {date} AND CAST(TRADE_DT AS SIGNED) >= {past_date_int})" \
+                f"UNION " \
+                f"SELECT S_INFO_WINDCODE, S_DQ_CLOSE, S_DQ_OPEN, S_DQ_HIGH, S_DQ_LOW " \
+                f"FROM AINDEXEODPRICES " \
+                f"WHERE S_INFO_WINDCODE IN ('{list_str}') " \
+                f"AND (CAST(TRADE_DT AS SIGNED) < {date} AND CAST(TRADE_DT AS SIGNED) >= {past_date_int})"
         try:
             cursor = self.conn.cursor()
             cursor.execute(query)
